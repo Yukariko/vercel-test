@@ -17,6 +17,7 @@ export default function RootLayout({ children }) {
             </Link>
             <nav className="nav">
               <Link href="/">홈</Link>
+              <Link href="/write">글쓰기</Link>
               <Link href="/about">소개</Link>
               <a href="/game.html">주가 게임</a>
             </nav>
