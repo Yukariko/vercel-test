@@ -1193,6 +1193,7 @@
     let candleSeries = null;
     let volSeries = null;
     let markers = [];             // Markers drawn on the chart
+    let gameOverTimeout = null;   // Pending endGame setTimeout ID
     
     // Settings state
     let soundEnabled = true;
@@ -1664,11 +1665,25 @@
     // 7. CORE GAME MECHANICS & CALCULATIONS
     // -------------------------------------------------------------
     function setupGame() {
+      // Cancel any pending game-over timeout from previous game
+      if (gameOverTimeout !== null) {
+        clearTimeout(gameOverTimeout);
+        gameOverTimeout = null;
+      }
+
+      // Clear leftover toast notifications
+      dom.toastContainer.innerHTML = '';
+
       // Reset State
       assetValue = initialAsset;
       assetHistory = [initialAsset];
       predictionLog = [];
       markers = [];
+
+      // Clear chart markers from previous game
+      if (candleSeries) {
+        candleSeries.setMarkers([]);
+      }
       
       stats = {
         wins: 0,
@@ -1860,7 +1875,10 @@
       
       // Game over check
       if (currentRound >= totalRounds || currentIndex + 1 >= stockData.length || assetValue <= 0) {
-        setTimeout(endGame, 1000);
+        gameOverTimeout = setTimeout(() => {
+          gameOverTimeout = null;
+          endGame();
+        }, 1000);
       }
     }
 
