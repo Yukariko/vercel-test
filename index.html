@@ -1,0 +1,2331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>주가 예측 게임 | Trading Challenge</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- TradingView Lightweight Charts CDN -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  
+  <style>
+    /* Modern Light Theme Styling */
+    :root {
+      --bg-color: #f8f9fa;
+      --card-bg: #ffffff;
+      --text-main: #1f2937;
+      --text-muted: #6b7280;
+      --border-color: #e5e7eb;
+      --primary-red: #ef4444;      /* Korean Stock Up */
+      --primary-blue: #3b82f6;     /* Korean Stock Down */
+      --primary-gray: #6b7280;     /* Neutral / Same */
+      
+      --red-hover: #dc2626;
+      --blue-hover: #2563eb;
+      --gray-hover: #4b5563;
+      
+      --accent-color: #10b981;     /* Success Green */
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      
+      --font-family: 'Inter', 'Noto Sans KR', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Container Header */
+    header {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+      z-index: 10;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-icon {
+      width: 2rem;
+      height: 2rem;
+      fill: none;
+      stroke: var(--primary-red);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .logo-text {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      background: linear-gradient(135deg, var(--primary-red) 30%, var(--primary-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Search & Selector UI */
+    .controls-top {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .search-wrapper {
+      position: relative;
+      width: 220px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.5rem 1rem 0.5rem 2.25rem;
+      border: 1px solid var(--border-color);
+      border-radius: 9999px;
+      font-family: var(--font-family);
+      font-size: 0.875rem;
+      font-weight: 500;
+      outline: none;
+      transition: all 0.2s ease;
+      background-color: var(--bg-color);
+    }
+
+    .search-input:focus {
+      border-color: var(--primary-blue);
+      background-color: var(--card-bg);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 0.875rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1rem;
+      height: 1rem;
+      fill: none;
+      stroke: var(--text-muted);
+      stroke-width: 2;
+    }
+
+    /* Dropdown suggestions */
+    .suggestions-list {
+      position: absolute;
+      top: calc(100% + 0.5rem);
+      left: 0;
+      right: 0;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 20;
+      display: none;
+    }
+
+    .suggestion-item {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.15s ease;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .suggestion-item:last-child {
+      border-bottom: none;
+    }
+
+    .suggestion-item:hover {
+      background-color: #f3f4f6;
+    }
+
+    .suggestion-name {
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .suggestion-code {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      background-color: var(--bg-color);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .popular-toggle-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      font-family: var(--font-family);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .popular-toggle-btn:hover {
+      background-color: #f3f4f6;
+      border-color: #d1d5db;
+    }
+
+    /* Layout Main */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 1.5rem;
+      padding: 1.5rem 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Left Section: Chart & Stock Info */
+    .chart-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .stock-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .stock-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+
+    .stock-badge {
+      font-size: 0.75rem;
+      background-color: #eff6ff;
+      color: #3b82f6;
+      padding: 0.25rem 0.50rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-family: monospace;
+    }
+
+    .data-source-badge {
+      font-size: 0.7rem;
+      background-color: #f3f4f6;
+      color: var(--text-muted);
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background-color: #10b981;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+    }
+    
+    .sim-dot {
+      width: 6px;
+      height: 6px;
+      background-color: #f59e0b;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .date-info {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      background-color: #f3f4f6;
+      padding: 0.35rem 0.75rem;
+      border-radius: 8px;
+    }
+
+    /* Chart Container Wrapper */
+    .chart-container-wrapper {
+      position: relative;
+      flex: 1;
+      min-height: 480px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #chart-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Control Panel Floating/Bottom */
+    .control-panel {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #f3f4f6;
+    }
+
+    .btn-predict {
+      flex: 1;
+      max-width: 180px;
+      padding: 0.875rem 1rem;
+      border: none;
+      border-radius: 12px;
+      font-family: var(--font-family);
+      font-size: 1rem;
+      font-weight: 700;
+      color: #ffffff;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.25rem;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+
+    .btn-predict:active {
+      transform: scale(0.95);
+    }
+
+    .btn-predict.up {
+      background-color: var(--primary-red);
+    }
+
+    .btn-predict.up:hover {
+      background-color: var(--red-hover);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-predict.down {
+      background-color: var(--primary-blue);
+    }
+
+    .btn-predict.down:hover {
+      background-color: var(--blue-hover);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-predict.same {
+      background-color: var(--primary-gray);
+    }
+
+    .btn-predict.same:hover {
+      background-color: var(--gray-hover);
+      box-shadow: 0 4px 12px rgba(107, 114, 128, 0.3);
+    }
+
+    .key-hint {
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.85);
+      background-color: rgba(0, 0, 0, 0.15);
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      margin-top: 0.15rem;
+    }
+
+    /* Right Section: Sidebar (Dashboard, Stats, Mini-Chart) */
+    .sidebar-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .sidebar-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .card-title {
+      font-size: 0.875rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .asset-val {
+      font-size: 1.875rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.25rem;
+      font-family: monospace;
+    }
+
+    .asset-rate {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .rate-up {
+      color: var(--primary-red);
+    }
+
+    .rate-down {
+      color: var(--primary-blue);
+    }
+
+    .rate-neutral {
+      color: var(--text-muted);
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .stat-box {
+      background-color: var(--bg-color);
+      padding: 1rem;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    /* Asset Chart SVG wrapper */
+    .asset-chart-container {
+      width: 100%;
+      height: 120px;
+      margin-top: 0.5rem;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .no-chart-data {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 120px;
+      background-color: var(--bg-color);
+      border: 1px dashed var(--border-color);
+      border-radius: 8px;
+    }
+
+    /* History Log List */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 0.75rem;
+      background-color: var(--bg-color);
+      border-radius: 8px;
+      font-size: 0.8125rem;
+      border-left: 4px solid var(--primary-gray);
+      transition: all 0.15s ease;
+    }
+
+    .history-item.success {
+      border-left-color: var(--accent-color);
+    }
+
+    .history-item.fail {
+      border-left-color: var(--primary-red);
+    }
+
+    .history-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+
+    .history-date {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    .history-action {
+      font-weight: 600;
+    }
+
+    .history-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.15rem;
+      font-family: monospace;
+    }
+
+    .history-outcome {
+      font-weight: 700;
+    }
+
+    .history-outcome.success {
+      color: var(--accent-color);
+    }
+
+    .history-outcome.fail {
+      color: var(--primary-red);
+    }
+
+    /* Popular Stocks Overlay Modal */
+    .pop-stocks-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .pop-stocks-modal.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .pop-stocks-card {
+      background-color: var(--card-bg);
+      border-radius: 20px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: var(--shadow-lg);
+      transform: translateY(20px);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .pop-stocks-modal.open .pop-stocks-card {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-title {
+      font-size: 1.125rem;
+      font-weight: 700;
+    }
+
+    .modal-close-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.15s ease;
+    }
+
+    .modal-close-btn:hover {
+      background-color: #f3f4f6;
+    }
+
+    .stocks-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      max-height: 350px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+
+    .pop-stock-button {
+      padding: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background-color: var(--bg-color);
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .pop-stock-button:hover {
+      border-color: var(--primary-blue);
+      background-color: #eff6ff;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .pop-stock-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+
+    .pop-stock-code {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: monospace;
+    }
+
+    /* Settings Control Card */
+    .settings-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .settings-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 22px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #d1d5db;
+      transition: .3s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary-blue);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    /* Alert / Floating Toast */
+    .toast-container {
+      position: fixed;
+      top: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 0.75rem 1.5rem;
+      background-color: var(--card-bg);
+      color: var(--text-main);
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 0.875rem;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      animation: toast-in-out 2.5s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      white-space: nowrap;
+    }
+
+    .toast.success {
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+      background-color: #ecfdf5;
+    }
+
+    .toast.fail {
+      border-color: var(--primary-red);
+      color: var(--primary-red);
+      background-color: #fef2f2;
+    }
+
+    .toast.info {
+      border-color: var(--primary-blue);
+      color: var(--primary-blue);
+      background-color: #eff6ff;
+    }
+
+    @keyframes toast-in-out {
+      0% { opacity: 0; transform: translateY(-20px); }
+      15% { opacity: 1; transform: translateY(0); }
+      85% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-20px); }
+    }
+
+    /* Game Over Modal styling */
+    .gameover-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(6px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .gameover-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .gameover-card {
+      background-color: var(--card-bg);
+      border-radius: 24px;
+      padding: 2.5rem;
+      width: 90%;
+      max-width: 480px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+      transform: scale(0.9);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .gameover-overlay.open .gameover-card {
+      transform: scale(1);
+    }
+
+    .gameover-badge {
+      font-size: 3.5rem;
+      margin-bottom: 1rem;
+      display: inline-block;
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .gameover-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+
+    .gameover-grade {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: var(--primary-blue);
+      margin-bottom: 1.5rem;
+      background-color: #eff6ff;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      display: inline-block;
+    }
+
+    .gameover-stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 0.95rem;
+    }
+
+    .gameover-stat-row:last-of-type {
+      border-bottom: none;
+      margin-bottom: 1.5rem;
+    }
+
+    .gameover-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .gameover-value {
+      font-weight: 700;
+      font-family: monospace;
+    }
+
+    .btn-action-primary {
+      width: 100%;
+      padding: 0.875rem;
+      border: none;
+      border-radius: 12px;
+      background-color: var(--primary-blue);
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn-action-primary:hover {
+      background-color: var(--blue-hover);
+    }
+
+    .btn-action-secondary {
+      width: 100%;
+      padding: 0.875rem;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background-color: transparent;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn-action-secondary:hover {
+      background-color: var(--bg-color);
+    }
+
+    /* Screen Loading Overlay */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.85);
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .loading-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .spinner {
+      width: 2.5rem;
+      height: 2.5rem;
+      border: 4px solid var(--border-color);
+      border-top-color: var(--primary-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-container">
+      <svg class="logo-icon" viewBox="0 0 24 24">
+        <path d="M3 3v18h18" />
+        <path d="M18.5 8.5L13.5 13.5L10.5 10.5L6 15" />
+      </svg>
+      <span class="logo-text">STOCK CHALLENGE</span>
+    </div>
+    
+    <div class="controls-top">
+      <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8" />
+          <path d="M21 21l-4.35-4.35" />
+        </svg>
+        <input type="text" id="stock-search" class="search-input" placeholder="종목명 또는 단축코드 입력..." autocomplete="off">
+        <div id="suggestions" class="suggestions-list"></div>
+      </div>
+      
+      <button id="popular-btn" class="popular-toggle-btn">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        인기 종목
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Game Area -->
+  <main>
+    <!-- Left: Chart Panel -->
+    <section class="chart-section">
+      <div class="chart-header">
+        <div class="stock-info">
+          <span id="stock-name" class="stock-title">삼성전자</span>
+          <span id="stock-code" class="stock-badge">005930.KS</span>
+          <span id="data-source" class="data-source-badge">
+            <span class="live-dot" id="source-dot"></span>
+            <span id="source-text">실시간 야후 API</span>
+          </span>
+        </div>
+        <div id="date-display" class="date-info">데이터 로딩 중...</div>
+      </div>
+
+      <!-- Chart Container inside relative wrapper for loading screen overlay -->
+      <div class="chart-container-wrapper">
+        <div id="chart-container"></div>
+        <!-- Loading Screen -->
+        <div id="chart-loading" class="loading-overlay">
+          <div class="spinner"></div>
+          <div class="loading-text" id="loading-message">주식 데이터를 분석하는 중...</div>
+        </div>
+      </div>
+
+      <!-- Prediction Controls -->
+      <div class="control-panel">
+        <button id="btn-up" class="btn-predict up">
+          <span>오른다 ▲</span>
+          <span class="key-hint">↑ 방향키</span>
+        </button>
+        <button id="btn-same" class="btn-predict same">
+          <span>그대로 ━</span>
+          <span class="key-hint">→ 또는 Space</span>
+        </button>
+        <button id="btn-down" class="btn-predict down">
+          <span>내린다 ▼</span>
+          <span class="key-hint">↓ 방향키</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Right: Sidebar Dashboard -->
+    <section class="sidebar-section">
+      <!-- Dashboard Card -->
+      <div class="sidebar-card">
+        <div class="card-title">내 자산 현황</div>
+        <div id="asset-value" class="asset-val">100,000,000 원</div>
+        <div id="asset-return" class="asset-rate rate-neutral">0.00% (초기 상태)</div>
+        
+        <div class="asset-chart-container" id="asset-chart-container">
+          <div class="no-chart-data">예측을 시작하면 여기에 자산 변동 그래프가 표시됩니다.</div>
+        </div>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="sidebar-card">
+        <div class="card-title">도전 통계</div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">성공률</div>
+            <div id="stat-winrate" class="stat-value">0.0%</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">성공 횟수</div>
+            <div id="stat-wins" class="stat-value">0 / 0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">연속 성공</div>
+            <div id="stat-streak" class="stat-value">0 회</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">남은 일수</div>
+            <div id="stat-remaining" class="stat-value">0 / 0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings & Controls -->
+      <div class="sidebar-card">
+        <div class="card-title">게임 설정</div>
+        <div class="settings-row">
+          <span>효과음 활성화</span>
+          <label class="switch">
+            <input type="checkbox" id="setting-sound" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="settings-row">
+          <span>한국식 차트 색상 (상승:빨강)</span>
+          <label class="switch">
+            <input type="checkbox" id="setting-korean-colors" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Live Log Card -->
+      <div class="sidebar-card" style="flex: 1; display: flex; flex-direction: column; min-height: 250px;">
+        <div class="card-title">
+          <span>최근 예측 결과</span>
+          <span style="font-size: 0.75rem; text-transform: none; color: var(--text-muted);" id="log-count">기록 없음</span>
+        </div>
+        <div id="history-log" class="history-list">
+          <!-- Dynamically inserted -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Popular Stocks Selector Modal -->
+  <div id="pop-modal" class="pop-stocks-modal">
+    <div class="pop-stocks-card">
+      <div class="modal-header">
+        <h3 class="modal-title">시작할 주식 종목 선택</h3>
+        <button id="modal-close" class="modal-close-btn">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div id="popular-stocks-list" class="stocks-grid">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Screen Modal -->
+  <div id="gameover-modal" class="gameover-overlay">
+    <div class="gameover-card">
+      <span class="gameover-badge" id="gameover-emoji">🏆</span>
+      <h2 class="gameover-title" id="gameover-title">투자 도전 종료!</h2>
+      <div class="gameover-grade" id="gameover-grade">수익률의 제왕</div>
+      
+      <div style="margin: 1.5rem 0;">
+        <div class="gameover-stat-row">
+          <span class="gameover-label">최종 자산</span>
+          <span class="gameover-value" id="go-asset">100,000,000원</span>
+        </div>
+        <div class="gameover-stat-row">
+          <span class="gameover-label">총 수익률</span>
+          <span class="gameover-value" id="go-return">+0.00%</span>
+        </div>
+        <div class="gameover-stat-row">
+          <span class="gameover-label">최종 승률</span>
+          <span class="gameover-value" id="go-winrate">0.0% (0/0)</span>
+        </div>
+        <div class="gameover-stat-row">
+          <span class="gameover-label">최대 연속 성공</span>
+          <span class="gameover-value" id="go-streak">0회</span>
+        </div>
+      </div>
+      
+      <button id="btn-restart" class="btn-action-primary">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation: spin 6s linear infinite;">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+        </svg>
+        같은 종목으로 다시 시작하기
+      </button>
+      <button id="btn-choose-other" class="btn-action-secondary">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        다른 종목 선택하기
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Toast Notification wrapper -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Main Game Script -->
+  <script>
+    // -------------------------------------------------------------
+    // 1. DATA DEFINITIONS & PRESET PARAMETERS
+    // -------------------------------------------------------------
+    const POPULAR_STOCKS = [
+      { name: '삼성전자', code: '005930', type: 'KS', desc: '반도체·가전·스마트폰 대표주', startPrice: 72000, vol: 0.015, drift: 0.0001 },
+      { name: 'SK하이닉스', code: '000660', type: 'KS', desc: '고대역폭 메모리(HBM) 반도체 대표주', startPrice: 175000, vol: 0.024, drift: 0.00025 },
+      { name: '현대자동차', code: '005380', type: 'KS', desc: '친환경 차 및 완성차 글로벌 리더', startPrice: 240000, vol: 0.018, drift: 0.00015 },
+      { name: 'NAVER', code: '035420', type: 'KS', desc: '국내 대표 인터넷 포털 및 플랫폼', startPrice: 180000, vol: 0.021, drift: -0.00005 },
+      { name: '카카오', code: '035720', type: 'KS', desc: '국민 모바일 메신저 기반 IT 서비스', startPrice: 48000, vol: 0.025, drift: -0.0001 },
+      { name: 'LG에너지솔루션', code: '373220', type: 'KS', desc: '전기차 2차전지 배터리 리더', startPrice: 380000, vol: 0.022, drift: 0.00005 },
+      { name: '셀트리온', code: '068270', type: 'KS', desc: '바이오시밀러 의약품 선두주자', startPrice: 190000, vol: 0.020, drift: 0.0001 },
+      { name: 'POSCO홀딩스', code: '005490', type: 'KS', desc: '철강 및 친환경 미래 소재 대표 기업', startPrice: 390000, vol: 0.023, drift: 0.0002 },
+      { name: '에코프로비엠', code: '247540', type: 'KQ', desc: '양극재 제조 코스닥 대표 성장기업', startPrice: 210000, vol: 0.038, drift: 0.0003 },
+      { name: '기아', code: '000270', type: 'KS', desc: '고수익성 완성차 글로벌 메이커', startPrice: 115000, vol: 0.017, drift: 0.0002 }
+    ];
+
+    // -------------------------------------------------------------
+    // 2. STATE VARIABLES
+    // -------------------------------------------------------------
+    let stockData = [];           // Daily candle data array
+    let currentStock = POPULAR_STOCKS[0];
+    let initialAsset = 100000000; // 100,000,000 KRW
+    let assetValue = 100000000;   
+    let assetHistory = [100000000];
+    
+    let startIndex = 0;           // Current visible start index
+    let currentIndex = 0;         // Latest revealed index
+    let totalRounds = 50;         // How many turns/predictions to play
+    let currentRound = 0;         // Current turn
+    
+    let stats = {
+      wins: 0,
+      total: 0,
+      streak: 0,
+      maxStreak: 0
+    };
+    
+    let predictionLog = [];       // User actions log
+    let chartInstance = null;
+    let candleSeries = null;
+    let volSeries = null;
+    let markers = [];             // Markers drawn on the chart
+    
+    // Settings state
+    let soundEnabled = true;
+    let useKoreanColors = true;
+    
+    // Web Audio Context (lazily initialized on first sound/click)
+    let audioContext = null;
+
+    // -------------------------------------------------------------
+    // 3. UI ELEMENT REFERENCES
+    // -------------------------------------------------------------
+    const dom = {
+      stockName: document.getElementById('stock-name'),
+      stockCode: document.getElementById('stock-code'),
+      dataSource: document.getElementById('source-text'),
+      sourceDot: document.getElementById('source-dot'),
+      dateDisplay: document.getElementById('date-display'),
+      chartContainer: document.getElementById('chart-container'),
+      chartLoading: document.getElementById('chart-loading'),
+      loadingMessage: document.getElementById('loading-message'),
+      
+      btnUp: document.getElementById('btn-up'),
+      btnSame: document.getElementById('btn-same'),
+      btnDown: document.getElementById('btn-down'),
+      
+      assetValue: document.getElementById('asset-value'),
+      assetReturn: document.getElementById('asset-return'),
+      assetChart: document.getElementById('asset-chart-container'),
+      
+      statWinrate: document.getElementById('stat-winrate'),
+      statWins: document.getElementById('stat-wins'),
+      statStreak: document.getElementById('stat-streak'),
+      statRemaining: document.getElementById('stat-remaining'),
+      
+      settingSound: document.getElementById('setting-sound'),
+      settingKoreanColors: document.getElementById('setting-korean-colors'),
+      
+      historyLog: document.getElementById('history-log'),
+      logCount: document.getElementById('log-count'),
+      
+      searchVal: document.getElementById('stock-search'),
+      suggestions: document.getElementById('suggestions'),
+      popularBtn: document.getElementById('popular-btn'),
+      popModal: document.getElementById('pop-modal'),
+      modalClose: document.getElementById('modal-close'),
+      popularStocksList: document.getElementById('popular-stocks-list'),
+      
+      gameoverModal: document.getElementById('gameover-modal'),
+      gameoverEmoji: document.getElementById('gameover-emoji'),
+      gameoverTitle: document.getElementById('gameover-title'),
+      gameoverGrade: document.getElementById('gameover-grade'),
+      goAsset: document.getElementById('go-asset'),
+      goReturn: document.getElementById('go-return'),
+      goWinrate: document.getElementById('go-winrate'),
+      goStreak: document.getElementById('go-streak'),
+      btnRestart: document.getElementById('btn-restart'),
+      btnChooseOther: document.getElementById('btn-choose-other'),
+      toastContainer: document.getElementById('toast-container')
+    };
+
+    // -------------------------------------------------------------
+    // 4. CHART SETUP & RESIZE MANAGEMENT
+    // -------------------------------------------------------------
+    function initChart() {
+      // Clear container in case of re-init
+      dom.chartContainer.innerHTML = '';
+      
+      const themeColors = {
+        up: useKoreanColors ? '#ef4444' : '#10b981', // Korean standard Red, or Global Green
+        down: useKoreanColors ? '#3b82f6' : '#ef4444', // Korean standard Blue, or Global Red
+      };
+      
+      chartInstance = LightweightCharts.createChart(dom.chartContainer, {
+        layout: {
+          background: { type: 'solid', color: '#ffffff' },
+          textColor: '#4b5563',
+          fontSize: 11,
+          fontFamily: 'Inter, sans-serif',
+        },
+        grid: {
+          vertLines: { color: '#f3f4f6', style: 2 },
+          horzLines: { color: '#f3f4f6', style: 2 },
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+          vertLine: {
+            color: '#9ca3af',
+            width: 1,
+            style: 3,
+            labelBackgroundColor: '#4b5563',
+          },
+          horzLine: {
+            color: '#9ca3af',
+            width: 1,
+            style: 3,
+            labelBackgroundColor: '#4b5563',
+          },
+        },
+        timeScale: {
+          borderColor: '#e5e7eb',
+          timeVisible: false,
+          secondsVisible: false,
+          rightOffset: 5,
+        },
+        rightPriceScale: {
+          borderColor: '#e5e7eb',
+          autoScale: true,
+        }
+      });
+
+      // Add Candlestick Series
+      candleSeries = chartInstance.addCandlestickSeries({
+        upColor: themeColors.up,
+        downColor: themeColors.down,
+        borderUpColor: themeColors.up,
+        borderDownColor: themeColors.down,
+        wickUpColor: themeColors.up,
+        wickDownColor: themeColors.down,
+      });
+
+      // Add Volume Series as Overlay
+      volSeries = chartInstance.addHistogramSeries({
+        color: '#e5e7eb',
+        priceFormat: {
+          type: 'volume',
+        },
+        priceScaleId: '', // Overlay style
+      });
+
+      // Position Volume series inside bottom 20%
+      volSeries.priceScale().applyOptions({
+        scaleMargins: {
+          top: 0.8,
+          bottom: 0,
+        },
+      });
+
+      // Make Responsive
+      const resizeObserver = new ResizeObserver(entries => {
+        if (entries.length === 0 || entries[0].contentRect.width === 0) return;
+        const { width, height } = entries[0].contentRect;
+        chartInstance.applyOptions({ width, height });
+      });
+      resizeObserver.observe(dom.chartContainer);
+    }
+
+    function updateChartColors() {
+      if (!candleSeries) return;
+      
+      const themeColors = {
+        up: useKoreanColors ? '#ef4444' : '#10b981',
+        down: useKoreanColors ? '#3b82f6' : '#ef4444',
+      };
+      
+      candleSeries.applyOptions({
+        upColor: themeColors.up,
+        downColor: themeColors.down,
+        borderUpColor: themeColors.up,
+        borderDownColor: themeColors.down,
+        wickUpColor: themeColors.up,
+        wickDownColor: themeColors.down,
+      });
+      
+      // Update markers color if they exist
+      if (markers.length > 0) {
+        const updatedMarkers = markers.map(m => {
+          let col = '#6b7280';
+          if (m.originalPrediction === 'up') col = themeColors.up;
+          if (m.originalPrediction === 'down') col = themeColors.down;
+          return { ...m, color: col };
+        });
+        candleSeries.setMarkers(updatedMarkers);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 5. AUDIO SYNTHESIZER (Web Audio API)
+    // -------------------------------------------------------------
+    function playAudioTone(type) {
+      if (!soundEnabled) return;
+      
+      try {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+        
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        const now = audioContext.currentTime;
+        
+        if (type === 'success') {
+          // Playful ascending chord: C5 -> E5 -> G5
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.08);
+          osc.frequency.setValueAtTime(783.99, now + 0.16);
+          
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.12, now + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } else if (type === 'fail') {
+          // Low cautionary warning buzz: A3 -> F3
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(220.00, now);
+          osc.frequency.setValueAtTime(174.61, now + 0.12);
+          
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.15, now + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          
+          osc.start(now);
+          osc.stop(now + 0.5);
+        } else if (type === 'click') {
+          // Clean subtle UI tick
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(150, now + 0.05);
+          
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.04, now + 0.005);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          
+          osc.start(now);
+          osc.stop(now + 0.06);
+        }
+      } catch (err) {
+        console.warn('Audio Context error: ', err);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 6. ROBUST DATA FETCHING & fallback GENERATION
+    // -------------------------------------------------------------
+    
+    // Normal distribution random generator (Box-Muller)
+    function randomNormal() {
+      let u = 0, v = 0;
+      while(u === 0) u = Math.random();
+      while(v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+    
+    // Generate simulated GBM stock history
+    function generateSimulatedStock(stock, count = 600) {
+      const data = [];
+      let price = stock.startPrice;
+      const vol = stock.vol || 0.02;
+      const drift = stock.drift || 0.0001;
+      
+      const date = new Date();
+      // Go back roughly count weekdays
+      date.setDate(date.getDate() - count * 1.4);
+      
+      for (let i = 0; i < count; i++) {
+        date.setDate(date.getDate() + 1);
+        // Skip weekend days
+        while (date.getDay() === 0 || date.getDay() === 6) {
+          date.setDate(date.getDate() + 1);
+        }
+        
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Geometric Brownian Motion formula
+        const shock = drift + vol * randomNormal();
+        const open = price;
+        const close = Math.round(price * (1 + shock));
+        // Ensure high is above both open & close, low is below both
+        const hMult = 1 + Math.abs(randomNormal()) * 0.3 * vol;
+        const lMult = 1 - Math.abs(randomNormal()) * 0.3 * vol;
+        const high = Math.round(Math.max(open, close) * hMult);
+        const low = Math.round(Math.min(open, close) * lMult);
+        
+        // Realistic volume distribution
+        const volume = Math.round(100000 + Math.random() * 800000);
+        
+        data.push({
+          time: dateStr,
+          open,
+          high,
+          low,
+          close,
+          volume
+        });
+        
+        price = close;
+      }
+      return data;
+    }
+
+    // Try fetching Yahoo Finance via public proxy, fall back to simulation
+    async function loadStockData(stock) {
+      dom.chartLoading.classList.add('active');
+      dom.loadingMessage.textContent = `"${stock.name}"의 과거 2년 시세를 수집하는 중...`;
+      
+      const yahooSymbol = `${stock.code}.${stock.type}`;
+      let fetchedData = [];
+      let success = false;
+      let modeText = '';
+      
+      // Step 1: Attempt to load from Yahoo Finance directly (sometimes blocks due to CORS depending on browser)
+      try {
+        console.log(`Attempting Yahoo Finance: ${yahooSymbol}`);
+        const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=2y&interval=1d`);
+        if (response.ok) {
+          const json = await response.json();
+          fetchedData = parseYahooJSON(json);
+          if (fetchedData.length > 150) {
+            success = true;
+            modeText = '실시간 야후 API';
+            dom.sourceDot.className = 'live-dot';
+          }
+        }
+      } catch (err) {
+        console.warn('Direct Yahoo Finance query failed. Retrying with proxy...', err);
+      }
+      
+      // Step 2: Try CORS proxies if direct fails
+      if (!success) {
+        const proxies = [
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=2y&interval=1d`)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}?range=2y&interval=1d`)}`
+        ];
+        
+        for (const proxyUrl of proxies) {
+          try {
+            console.log(`Attempting with proxy: ${proxyUrl}`);
+            const response = await fetch(proxyUrl);
+            if (response.ok) {
+              const json = await response.json();
+              fetchedData = parseYahooJSON(json);
+              if (fetchedData.length > 150) {
+                success = true;
+                modeText = '야후 API (프록시 우회)';
+                dom.sourceDot.className = 'live-dot';
+                break;
+              }
+            }
+          } catch (err) {
+            console.warn(`Proxy failed: ${proxyUrl}`, err);
+          }
+        }
+      }
+
+      // Step 3: Try Naver Finance XML API via proxy
+      if (!success) {
+        const naverUrl = `https://fchart.stock.naver.com/sise.nhn?symbol=${stock.code}&timeframe=day&count=600&requestType=0`;
+        const naverProxy = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(naverUrl)}`;
+        try {
+          console.log(`Attempting Naver XML: ${naverUrl}`);
+          const response = await fetch(naverProxy);
+          if (response.ok) {
+            const xmlText = await response.text();
+            fetchedData = parseNaverXML(xmlText);
+            if (fetchedData.length > 150) {
+              success = true;
+              modeText = '네이버 금융 (프록시)';
+              dom.sourceDot.className = 'live-dot';
+            }
+          }
+        } catch (err) {
+          console.warn('Naver XML Fetch failed: ', err);
+        }
+      }
+      
+      // Step 4: Fallback to high-quality GBM simulation if all APIs fail
+      if (!success || fetchedData.length < 150) {
+        console.warn('All APIs failed. Initiating scientific simulation fallback.');
+        fetchedData = generateSimulatedStock(stock, 600);
+        modeText = '시뮬레이션 데이터 (오프라인 모드)';
+        dom.sourceDot.className = 'sim-dot';
+        showToast('실시간 시세를 가져오지 못해 정밀 시뮬레이션 데이터로 시작합니다.', 'info');
+      }
+      
+      stockData = fetchedData;
+      dom.dataSource.textContent = modeText;
+      
+      // Prepare Game Board
+      setupGame();
+      dom.chartLoading.classList.remove('active');
+    }
+
+    function parseYahooJSON(json) {
+      try {
+        const result = json.chart.result[0];
+        const timestamps = result.timestamp;
+        const quote = result.indicators.quote[0];
+        
+        const data = [];
+        for (let i = 0; i < timestamps.length; i++) {
+          const timestamp = timestamps[i];
+          const timeString = new Date(timestamp * 1000).toISOString().split('T')[0];
+          
+          const open = quote.open[i];
+          const high = quote.high[i];
+          const low = quote.low[i];
+          const close = quote.close[i];
+          const volume = quote.volume[i];
+          
+          if (open !== null && high !== null && low !== null && close !== null) {
+            data.push({
+              time: timeString,
+              open: parseFloat(open),
+              high: parseFloat(high),
+              low: parseFloat(low),
+              close: parseFloat(close),
+              volume: volume ? parseFloat(volume) : 0
+            });
+          }
+        }
+        // Ensure chronologically sorted
+        return data.sort((a, b) => a.time.localeCompare(b.time));
+      } catch (err) {
+        console.error('Error parsing Yahoo JSON: ', err);
+        return [];
+      }
+    }
+
+    function parseNaverXML(xmlText) {
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
+        const items = xmlDoc.getElementsByTagName('item');
+        
+        const data = [];
+        for (let i = 0; i < items.length; i++) {
+          const dataAttr = items[i].getAttribute('data');
+          if (!dataAttr) continue;
+          
+          const parts = dataAttr.split('|');
+          if (parts.length < 5) continue;
+          
+          const dateStr = parts[0]; // YYYYMMDD
+          const open = parseFloat(parts[1]);
+          const high = parseFloat(parts[2]);
+          const low = parseFloat(parts[3]);
+          const close = parseFloat(parts[4]);
+          const volume = parts[5] ? parseFloat(parts[5]) : 0;
+          
+          const formattedDate = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+          
+          data.push({
+            time: formattedDate,
+            open,
+            high,
+            low,
+            close,
+            volume
+          });
+        }
+        return data;
+      } catch (err) {
+        console.error('Error parsing Naver XML: ', err);
+        return [];
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 7. CORE GAME MECHANICS & CALCULATIONS
+    // -------------------------------------------------------------
+    function setupGame() {
+      // Reset State
+      assetValue = initialAsset;
+      assetHistory = [initialAsset];
+      predictionLog = [];
+      markers = [];
+      
+      stats = {
+        wins: 0,
+        total: 0,
+        streak: 0,
+        maxStreak: 0
+      };
+      
+      dom.historyLog.innerHTML = '';
+      dom.logCount.textContent = '기록 없음';
+      
+      // Determine starting index
+      // past 2 years of daily data is approx 480-500 days.
+      // We will play for 50 rounds.
+      // Initial chart shows 100 days.
+      // Therefore, we need at least 150 days of data.
+      totalRounds = 50; 
+      const minRequiredData = 100 + totalRounds;
+      
+      if (stockData.length < minRequiredData) {
+        // Fallback in case we have low data count
+        totalRounds = Math.max(10, stockData.length - 100 - 5);
+      }
+      
+      // Select a random start point
+      // Start index must allow totalRounds of sliding
+      const maxStartIndex = stockData.length - 100 - totalRounds;
+      startIndex = Math.floor(Math.random() * (maxStartIndex + 1));
+      currentIndex = startIndex + 99; // Index of the 100th revealed day
+      currentRound = 0;
+      
+      // Setup Chart Data
+      const initialChartData = stockData.slice(startIndex, currentIndex + 1);
+      candleSeries.setData(initialChartData);
+      
+      // Volume formatting
+      const volData = initialChartData.map(d => {
+        let isUp = d.close >= d.open;
+        return {
+          time: d.time,
+          value: d.volume,
+          color: isUp ? (useKoreanColors ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)') : (useKoreanColors ? 'rgba(59, 130, 246, 0.25)' : 'rgba(239, 68, 68, 0.25)')
+        };
+      });
+      volSeries.setData(volData);
+      
+      // Scroll to show all 100 bars nicely
+      chartInstance.timeScale().setVisibleRange({
+        from: stockData[startIndex].time,
+        to: stockData[currentIndex].time
+      });
+      
+      // Update UI elements
+      dom.stockName.textContent = currentStock.name;
+      dom.stockCode.textContent = `${currentStock.code}.${currentStock.type}`;
+      
+      updateDashboard();
+      updateStatusLabel();
+    }
+
+    function handlePrediction(action) {
+      if (currentRound >= totalRounds) return;
+      
+      playAudioTone('click');
+      
+      // Check boundaries
+      if (currentIndex + 1 >= stockData.length) {
+        endGame();
+        return;
+      }
+      
+      const prevClose = stockData[currentIndex].close;
+      const nextDay = stockData[currentIndex + 1];
+      const nextClose = nextDay.close;
+      const ratio = nextClose / prevClose;
+      
+      let actualDirection = 'same';
+      if (nextClose > prevClose) actualDirection = 'up';
+      if (nextClose < prevClose) actualDirection = 'down';
+      
+      let isSuccess = false;
+      let multiplier = 1.0;
+      let percentChange = (ratio - 1) * 100;
+      
+      // Perform Asset Calculation & success check based on the rules:
+      if (action === 'up') {
+        // Up prediction:
+        // Asset scales directly with the stock return (up increases, down decreases)
+        multiplier = ratio;
+        isSuccess = (actualDirection === 'up');
+      } else if (action === 'down') {
+        // Down prediction:
+        // Went Up -> Asset decreases by the percentage it rose
+        // Went Down -> Asset stays same (neutral cash position, no inverse short gain)
+        if (actualDirection === 'up') {
+          multiplier = 2 - ratio; // e.g. if it rose by 5% (ratio 1.05), asset decreases by 5% (multiplier 0.95)
+        } else {
+          multiplier = 1.0; // stays the same
+        }
+        isSuccess = (actualDirection === 'down');
+      } else if (action === 'same') {
+        // Same prediction:
+        // Holds cash -> Asset stays unchanged in all directions
+        multiplier = 1.0;
+        isSuccess = (actualDirection === 'same');
+      }
+      
+      // Update Asset Value
+      const prevAsset = assetValue;
+      assetValue = assetValue * multiplier;
+      
+      // Don't let asset fall below zero (just in case)
+      if (assetValue < 0) assetValue = 0;
+      
+      // Update stats
+      stats.total++;
+      if (isSuccess) {
+        stats.wins++;
+        stats.streak++;
+        if (stats.streak > stats.maxStreak) {
+          stats.maxStreak = stats.streak;
+        }
+        playAudioTone('success');
+        showToast(`${getPredictionLabel(action)} 성공! +${percentChange.toFixed(2)}%`, 'success');
+      } else {
+        stats.streak = 0;
+        playAudioTone('fail');
+        
+        let lostPct = ((assetValue / prevAsset - 1) * 100).toFixed(2);
+        let lostText = lostPct < 0 ? ` (자산 ${lostPct}%)` : '';
+        showToast(`${getPredictionLabel(action)} 실패... 실제 ${actualDirection === 'up' ? '상승' : actualDirection === 'down' ? '하락' : '보합'}${lostText}`, 'fail');
+      }
+      
+      // Record in log
+      const assetDiffPercent = ((assetValue / prevAsset - 1) * 100);
+      predictionLog.unshift({
+        date: nextDay.time,
+        action: action,
+        actual: actualDirection,
+        success: isSuccess,
+        change: assetDiffPercent,
+        resultAsset: assetValue
+      });
+      
+      assetHistory.push(assetValue);
+      
+      // Advance State
+      currentIndex++;
+      startIndex++; // Slide window
+      currentRound++;
+      
+      // Append new day candle to the chart
+      candleSeries.update(nextDay);
+      
+      // Append volume
+      let isUp = nextDay.close >= nextDay.open;
+      volSeries.update({
+        time: nextDay.time,
+        value: nextDay.volume,
+        color: isUp ? (useKoreanColors ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)') : (useKoreanColors ? 'rgba(59, 130, 246, 0.25)' : 'rgba(239, 68, 68, 0.25)')
+      });
+      
+      // Add Prediction Marker
+      let markerColor = '#6b7280';
+      if (action === 'up') markerColor = useKoreanColors ? '#ef4444' : '#10b981';
+      if (action === 'down') markerColor = useKoreanColors ? '#3b82f6' : '#ef4444';
+      
+      markers.push({
+        time: nextDay.time,
+        position: action === 'up' ? 'belowBar' : (action === 'down' ? 'aboveBar' : 'inBar'),
+        color: markerColor,
+        shape: action === 'up' ? 'arrowUp' : (action === 'down' ? 'arrowDown' : 'circle'),
+        text: `${getPredictionIcon(action)} ${isSuccess ? '성공' : '실패'}`,
+        originalPrediction: action // to support color toggle later
+      });
+      
+      candleSeries.setMarkers(markers);
+      
+      // Slide view
+      chartInstance.timeScale().setVisibleRange({
+        from: stockData[startIndex].time,
+        to: stockData[currentIndex].time
+      });
+      
+      // Update UI panels
+      updateDashboard();
+      updateStatusLabel();
+      renderHistoryLog();
+      
+      // Game over check
+      if (currentRound >= totalRounds || currentIndex + 1 >= stockData.length || assetValue <= 0) {
+        setTimeout(endGame, 1000);
+      }
+    }
+
+    // Help formatting
+    function getPredictionLabel(act) {
+      if (act === 'up') return '오른다 ▲';
+      if (act === 'down') return '내린다 ▼';
+      return '그대로 ━';
+    }
+    
+    function getPredictionIcon(act) {
+      if (act === 'up') return '▲';
+      if (act === 'down') return '▼';
+      return '━';
+    }
+
+    // Formatting money in Korean style (e.g. 1억 2,350만 원)
+    function formatKoreanCurrency(value) {
+      if (value === 0) return '0 원';
+      
+      const sign = value < 0 ? '-' : '';
+      const absValue = Math.abs(Math.round(value));
+      
+      const eok = Math.floor(absValue / 100000000);
+      const man = Math.floor((absValue % 100000000) / 10000);
+      const won = Math.floor(absValue % 10000);
+      
+      let result = '';
+      if (eok > 0) {
+        result += `${eok}억 `;
+      }
+      if (man > 0) {
+        // Format man with commas if eok is 0, or pad it
+        result += `${man.toLocaleString()}만 `;
+      }
+      if (won > 0 && eok === 0 && man === 0) {
+        result += `${won.toLocaleString()} `;
+      }
+      
+      return `${sign}${result.trim()} 원`;
+    }
+
+    // -------------------------------------------------------------
+    // 8. UI RENDERING FUNCTIONS (Dashboard, SVG Graph, Log)
+    // -------------------------------------------------------------
+    function updateDashboard() {
+      // Asset value text
+      dom.assetValue.textContent = formatKoreanCurrency(assetValue);
+      
+      // Return percent
+      const totalReturnPct = ((assetValue / initialAsset) - 1) * 100;
+      const formattedPct = totalReturnPct >= 0 ? `+${totalReturnPct.toFixed(2)}%` : `${totalReturnPct.toFixed(2)}%`;
+      dom.assetReturn.textContent = `${formattedPct} 수익률 (초기 1억 대비)`;
+      
+      // Color coding return
+      if (totalReturnPct > 0) {
+        dom.assetReturn.className = 'asset-rate rate-up';
+      } else if (totalReturnPct < 0) {
+        dom.assetReturn.className = 'asset-rate rate-down';
+      } else {
+        dom.assetReturn.className = 'asset-rate rate-neutral';
+      }
+      
+      // Winrate
+      const winRateVal = stats.total > 0 ? (stats.wins / stats.total) * 100 : 0.0;
+      dom.statWinrate.textContent = `${winRateVal.toFixed(1)}%`;
+      dom.statWins.textContent = `${stats.wins} / ${stats.total}`;
+      
+      // Streak & Remaining
+      dom.statStreak.textContent = `${stats.streak} 회`;
+      dom.statRemaining.textContent = `${totalRounds - currentRound} 일`;
+      
+      // Draw SVG Line Chart
+      drawAssetHistoryChart();
+    }
+
+    function formatDateString(timeVal) {
+      if (!timeVal) return '';
+      if (typeof timeVal === 'string') {
+        const parts = timeVal.split('-');
+        if (parts.length === 3) {
+          return `${parts[0]}년 ${parts[1]}월 ${parts[2]}일`;
+        }
+        return timeVal;
+      } else if (typeof timeVal === 'object') {
+        const year = timeVal.year;
+        const month = String(timeVal.month).padStart(2, '0');
+        const day = String(timeVal.day).padStart(2, '0');
+        return `${year}년 ${month}월 ${day}일`;
+      }
+      return String(timeVal);
+    }
+
+    function updateStatusLabel() {
+      if (stockData.length === 0) return;
+      
+      const currentDay = stockData[currentIndex];
+      if (currentDay && currentDay.time) {
+        const formattedDate = formatDateString(currentDay.time);
+        dom.dateDisplay.textContent = `${formattedDate} (${currentRound + 1}/${totalRounds} 영업일차)`;
+      } else {
+        dom.dateDisplay.textContent = `${currentRound + 1}/${totalRounds} 영업일차`;
+      }
+    }
+
+    // Draw secondary SVG graph inside sidebar card
+    function drawAssetHistoryChart() {
+      const container = dom.assetChart;
+      const width = container.clientWidth || 300;
+      const height = container.clientHeight || 120;
+      
+      if (assetHistory.length < 2) {
+        container.innerHTML = '<div class="no-chart-data">예측을 시작하면기에 자산 변동 그래프가 표시됩니다.</div>';
+        return;
+      }
+      
+      const history = assetHistory;
+      const minVal = Math.min(...history);
+      const maxVal = Math.max(...history);
+      
+      // Margin around graph
+      const graphMin = Math.min(initialAsset * 0.95, minVal * 0.98);
+      const graphMax = Math.max(initialAsset * 1.05, maxVal * 1.02);
+      const graphRange = graphMax - graphMin;
+      
+      let points = '';
+      for (let i = 0; i < history.length; i++) {
+        const x = (i / (history.length - 1)) * (width - 24) + 12;
+        const y = height - ((history[i] - graphMin) / graphRange) * (height - 24) - 12;
+        points += `${x},${y} `;
+      }
+      
+      const currentAssetVal = history[history.length - 1];
+      const isProfit = currentAssetVal >= initialAsset;
+      const themeColor = isProfit ? '#ef4444' : '#3b82f6'; // red for profit, blue for loss
+      const gradientId = 'asset-gradient-id';
+      
+      const baseLineY = height - ((initialAsset - graphMin) / graphRange) * (height - 24) - 12;
+      const lastPointY = height - ((currentAssetVal - graphMin) / graphRange) * (height - 24) - 12;
+      const lastPointX = width - 12;
+      
+      let svg = `
+        <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="overflow: visible;">
+          <defs>
+            <linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="${themeColor}" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="${themeColor}" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+          
+          <!-- Dashed Initial Asset Baseline (1억) -->
+          <line x1="12" y1="${baseLineY}" x2="${width - 12}" y2="${baseLineY}" 
+                stroke="#d1d5db" stroke-dasharray="3,3" stroke-width="1.5" />
+          
+          <!-- Fill Area under the curve -->
+          <path d="M 12,${height - 12} L ${points} L ${lastPointX},${height - 12} Z" fill="url(#${gradientId})"/>
+          
+          <!-- Trend line -->
+          <polyline points="${points}" fill="none" stroke="${themeColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          
+          <!-- Indicator circles -->
+          <circle cx="12" cy="${baseLineY}" r="4" fill="#9ca3af" stroke="#ffffff" stroke-width="1.5" />
+          <circle cx="${lastPointX}" cy="${lastPointY}" r="5" fill="${themeColor}" stroke="#ffffff" stroke-width="2" />
+        </svg>
+      `;
+      container.innerHTML = svg;
+    }
+
+    // Render recently completed turns in sidebar
+    function renderHistoryLog() {
+      if (predictionLog.length === 0) {
+        dom.historyLog.innerHTML = '<div class="no-chart-data">아직 예측 결과가 없습니다.</div>';
+        dom.logCount.textContent = '기록 없음';
+        return;
+      }
+      
+      dom.logCount.textContent = `${predictionLog.length}일 완료`;
+      
+      let html = '';
+      predictionLog.forEach(log => {
+        let dateShort = '';
+        if (typeof log.date === 'string') {
+          const dateParts = log.date.split('-');
+          dateShort = dateParts.length === 3 ? `${dateParts[1]}/${dateParts[2]}` : log.date;
+        } else if (typeof log.date === 'object') {
+          dateShort = `${String(log.date.month).padStart(2, '0')}/${String(log.date.day).padStart(2, '0')}`;
+        } else {
+          dateShort = String(log.date);
+        }
+        
+        const changeClass = log.change > 0 ? 'success' : (log.change < 0 ? 'fail' : '');
+        const changeSign = log.change > 0 ? '+' : '';
+        const outcomeText = log.success ? '성공' : '실패';
+        const outcomeClass = log.success ? 'success' : 'fail';
+        
+        html += `
+          <div class="history-item ${log.success ? 'success' : 'fail'}">
+            <div class="history-left">
+              <span class="history-action">
+                ${getPredictionIcon(log.action)} ${getPredictionLabel(log.action).split(' ')[0]} 
+                <span class="history-outcome ${outcomeClass}">[${outcomeText}]</span>
+              </span>
+              <span class="history-date">${dateShort} · 실제:${getActualDirectionLabel(log.actual)}</span>
+            </div>
+            <div class="history-right">
+              <span class="${changeClass}">${changeSign}${log.change.toFixed(2)}%</span>
+              <span style="font-size: 0.7rem; color: var(--text-muted);">${formatKoreanCurrency(log.resultAsset).split(' ')[0]}</span>
+            </div>
+          </div>
+        `;
+      });
+      dom.historyLog.innerHTML = html;
+    }
+    
+    function getActualDirectionLabel(dir) {
+      if (dir === 'up') return '상승▲';
+      if (dir === 'down') return '하락▼';
+      return '보합━';
+    }
+
+    // Toast Floating Alert Popups
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      
+      let icon = 'ℹ️';
+      if (type === 'success') icon = '✅';
+      if (type === 'fail') icon = '❌';
+      
+      toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+      dom.toastContainer.appendChild(toast);
+      
+      // Auto-destroy after animation finishes
+      setTimeout(() => {
+        toast.remove();
+      }, 2500);
+    }
+
+    // -------------------------------------------------------------
+    // 9. GAME OVER & RATING SYSTEM
+    // -------------------------------------------------------------
+    function endGame() {
+      // Evaluate final ROI and winrate
+      const finalReturnPct = ((assetValue / initialAsset) - 1) * 100;
+      const winRate = stats.total > 0 ? (stats.wins / stats.total) * 100 : 0;
+      
+      // Generate grade
+      let grade = '일반 개미 투자자';
+      let emoji = '🐜';
+      
+      if (finalReturnPct >= 100) {
+        grade = '주식 투자의 신 (워런 버핏급)';
+        emoji = '🧙‍♂️';
+      } else if (finalReturnPct >= 50) {
+        grade = '여의도 1타 펀드매니저';
+        emoji = '💎';
+      } else if (finalReturnPct >= 20) {
+        grade = '월스트리트 전문 트레이더';
+        emoji = '📈';
+      } else if (finalReturnPct >= 5) {
+        grade = '동네 투자 고수';
+        emoji = '🔥';
+      } else if (finalReturnPct > -5 && finalReturnPct <= 5) {
+        grade = '예적금 선호 현금주의자';
+        emoji = '🏦';
+      } else if (finalReturnPct > -20 && finalReturnPct <= -5) {
+        grade = '물려버린 개미 투자자';
+        emoji = '😭';
+      } else {
+        grade = '한강물 수온 체크 단원';
+        emoji = '📉';
+      }
+      
+      // Update gameover modal text
+      dom.gameoverEmoji.textContent = emoji;
+      dom.gameoverTitle.textContent = finalReturnPct >= 0 ? '성공적으로 도전을 마쳤습니다!' : '참혹한 성적표...';
+      dom.gameoverGrade.textContent = grade;
+      dom.goAsset.textContent = formatKoreanCurrency(assetValue);
+      dom.goReturn.textContent = `${finalReturnPct >= 0 ? '+' : ''}${finalReturnPct.toFixed(2)}%`;
+      dom.goWinrate.textContent = `${winRate.toFixed(1)}% (${stats.wins}/${stats.total} 일)`;
+      dom.goStreak.textContent = `${stats.maxStreak}회`;
+      
+      // Show Modal
+      dom.gameoverModal.classList.add('open');
+    }
+
+    // -------------------------------------------------------------
+    // 10. STOCK AUTOCLOSE SUGGESTION LIST
+    // -------------------------------------------------------------
+    function showSuggestions(query) {
+      dom.suggestions.innerHTML = '';
+      if (!query) {
+        dom.suggestions.style.display = 'none';
+        return;
+      }
+      
+      const q = query.toLowerCase();
+      // Match query against names and codes
+      const filtered = POPULAR_STOCKS.filter(stock => 
+        stock.name.toLowerCase().includes(q) || stock.code.includes(q)
+      );
+      
+      if (filtered.length === 0) {
+        // If not found in popular list, offer to try it as a code
+        if (/^\d{6}$/.test(query)) {
+          const customStock = { name: `주식코드 ${query}`, code: query, type: 'KS', desc: '검색된 신규 주식' };
+          const item = createSuggestionItem(customStock);
+          dom.suggestions.appendChild(item);
+          dom.suggestions.style.display = 'block';
+        } else {
+          dom.suggestions.style.display = 'none';
+        }
+        return;
+      }
+      
+      filtered.forEach(stock => {
+        const item = createSuggestionItem(stock);
+        dom.suggestions.appendChild(item);
+      });
+      dom.suggestions.style.display = 'block';
+    }
+
+    function createSuggestionItem(stock) {
+      const div = document.createElement('div');
+      div.className = 'suggestion-item';
+      div.innerHTML = `
+        <span class="suggestion-name">${stock.name}</span>
+        <span class="suggestion-code">${stock.code}</span>
+      `;
+      div.addEventListener('click', () => {
+        currentStock = stock;
+        dom.searchVal.value = '';
+        dom.suggestions.style.display = 'none';
+        loadStockData(stock);
+      });
+      return div;
+    }
+
+    function renderPopularStocksModal() {
+      dom.popularStocksList.innerHTML = '';
+      POPULAR_STOCKS.forEach(stock => {
+        const btn = document.createElement('button');
+        btn.className = 'pop-stock-button';
+        btn.innerHTML = `
+          <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+            <span class="pop-stock-name">${stock.name}</span>
+            <span class="pop-stock-code">${stock.code}</span>
+          </div>
+          <span style="font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">${stock.desc}</span>
+        `;
+        btn.addEventListener('click', () => {
+          currentStock = stock;
+          dom.popModal.classList.remove('open');
+          loadStockData(stock);
+        });
+        dom.popularStocksList.appendChild(btn);
+      });
+    }
+
+    // -------------------------------------------------------------
+    // 11. KEYBOARD SHORTCUTS & BINDINGS
+    // -------------------------------------------------------------
+    function setupEventListeners() {
+      // Buttons
+      dom.btnUp.addEventListener('click', () => handlePrediction('up'));
+      dom.btnDown.addEventListener('click', () => handlePrediction('down'));
+      dom.btnSame.addEventListener('click', () => handlePrediction('same'));
+      
+      // Settings
+      dom.settingSound.addEventListener('change', (e) => {
+        soundEnabled = e.target.checked;
+        showToast(`효과음이 ${soundEnabled ? '활성화' : '비활성화'}되었습니다.`, 'info');
+      });
+      
+      dom.settingKoreanColors.addEventListener('change', (e) => {
+        useKoreanColors = e.target.checked;
+        updateChartColors();
+        showToast(`차트 테마가 ${useKoreanColors ? '한국식(상승:빨강)' : '글로벌(상승:초록)'}으로 변경되었습니다.`, 'info');
+      });
+      
+      // Auto complete search
+      dom.searchVal.addEventListener('input', (e) => {
+        showSuggestions(e.target.value);
+      });
+      
+      // Close dropdown suggestion list on clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-wrapper')) {
+          dom.suggestions.style.display = 'none';
+        }
+      });
+      
+      // Popular list modal toggles
+      dom.popularBtn.addEventListener('click', () => {
+        renderPopularStocksModal();
+        dom.popModal.classList.add('open');
+      });
+      
+      dom.modalClose.addEventListener('click', () => {
+        dom.popModal.classList.remove('open');
+      });
+      
+      dom.popModal.addEventListener('click', (e) => {
+        if (e.target === dom.popModal) {
+          dom.popModal.classList.remove('remove');
+          dom.popModal.classList.remove('open');
+        }
+      });
+      
+      // Restart & Game Action Modals
+      dom.btnRestart.addEventListener('click', () => {
+        dom.gameoverModal.classList.remove('open');
+        setupGame();
+        showToast('게임을 재시작했습니다.', 'info');
+      });
+      
+      dom.btnChooseOther.addEventListener('click', () => {
+        dom.gameoverModal.classList.remove('open');
+        renderPopularStocksModal();
+        dom.popModal.classList.add('open');
+      });
+      
+      // Keyboard event handler
+      document.addEventListener('keydown', (e) => {
+        // If user typing in input, ignore shortcuts
+        if (document.activeElement === dom.searchVal) return;
+        
+        // Disable keys scroll default behavior when playing
+        if (['ArrowUp', 'ArrowDown', 'ArrowRight', ' '].includes(e.key)) {
+          e.preventDefault();
+        }
+        
+        // If modals are open, disable predictions
+        if (dom.popModal.classList.contains('open') || dom.gameoverModal.classList.contains('open')) {
+          return;
+        }
+        
+        switch(e.key) {
+          case 'ArrowUp':
+            handlePrediction('up');
+            break;
+          case 'ArrowDown':
+            handlePrediction('down');
+            break;
+          case 'ArrowRight':
+          case ' ': // Space bar
+            handlePrediction('same');
+            break;
+        }
+      });
+    }
+
+    // -------------------------------------------------------------
+    // 12. INITIALIZATION ON LOAD
+    // -------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      // 1. Initialize Lightweight Chart
+      initChart();
+      
+      // 2. Setup standard listeners (Shortcuts, button controls, etc.)
+      setupEventListeners();
+      
+      // 3. Load initial stock data (Samsung)
+      loadStockData(POPULAR_STOCKS[0]);
+    });
+  </script>
+</body>
+</html>
