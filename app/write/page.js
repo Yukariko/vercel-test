@@ -1,50 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { saveLocalPost, makeSlug } from "@/lib/localPosts";
 
 export default function WritePage() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [tags, setTags] = useState("");
   const [excerpt, setExcerpt] = useState("");
   const [content, setContent] = useState("");
-  const [token, setToken] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus] = useState(null);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("blog-admin-token");
-    if (saved) setToken(saved);
-  }, []);
-
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault();
-    setSubmitting(true);
-    setStatus(null);
-    localStorage.setItem("blog-admin-token", token);
-    try {
-      const res = await fetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, slug, tags, excerpt, content, token }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "오류가 발생했습니다.");
-      setStatus({
-        type: "success",
-        msg: `발행 완료! 약 1~2분 후 재배포되면 /posts/${data.slug} 에서 확인할 수 있습니다.`,
-      });
-      setTitle("");
-      setSlug("");
-      setTags("");
-      setExcerpt("");
-      setContent("");
-    } catch (err) {
-      setStatus({ type: "error", msg: err.message });
-    } finally {
-      setSubmitting(false);
-    }
+    const finalSlug = makeSlug(slug || title);
+    const tagList = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    saveLocalPost({
+      slug: finalSlug,
+      title: title.trim(),
+      excerpt: excerpt.trim(),
+      tags: tagList,
+      content: content.trim(),
+      date: new Date().toISOString().slice(0, 10),
+    });
+    router.push(`/my/${finalSlug}`);
   }
 
   return (
@@ -55,7 +39,7 @@ export default function WritePage() {
       <header className="article-header">
         <h1>글쓰기</h1>
         <div className="post-meta">
-          작성한 글은 저장소에 마크다운 파일로 커밋되어 자동 재배포됩니다.
+          작성한 글은 이 브라우저에만 저장됩니다. (서버에 영구 저장되지 않음)
         </div>
       </header>
 
@@ -112,24 +96,9 @@ export default function WritePage() {
           />
         </label>
 
-        <label className="field">
-          <span>관리자 토큰 *</span>
-          <input
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="BLOG_ADMIN_TOKEN"
-            required
-          />
-        </label>
-
-        <button className="submit-btn" type="submit" disabled={submitting}>
-          {submitting ? "발행 중…" : "발행하기"}
+        <button className="submit-btn" type="submit">
+          저장하기
         </button>
-
-        {status && (
-          <p className={`form-status ${status.type}`}>{status.msg}</p>
-        )}
       </form>
     </article>
   );
