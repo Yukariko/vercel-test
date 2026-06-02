@@ -354,6 +354,10 @@
             min-height: 0;
         }
 
+        .panel-section.prediction-section {
+            flex-shrink: 0;
+        }
+
         .section-title {
             font-size: 12px;
             font-weight: 700;
@@ -793,7 +797,7 @@
         <!-- Right Side Panel (Portfolio & Controls) -->
         <div class="right-panel">
             <!-- Portfolio Section -->
-            <div class="panel-section">
+            <div class="panel-section scrollable-section">
                 <span class="section-title">내 포트폴리오</span>
                 <div class="portfolio-summary">
                     <div class="asset-main">
@@ -833,7 +837,7 @@
             </div>
 
             <!-- Prediction Section -->
-            <div class="panel-section scrollable-section">
+            <div class="panel-section prediction-section">
                 <span class="section-title">다음 개장일 예측</span>
                 <div class="prediction-box">
                     <button class="btn-predict btn-up" data-prediction="up">
